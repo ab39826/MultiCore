@@ -1,0 +1,125 @@
+package q5;
+
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+// TODO
+// Use locks and condition variables to implement the bathroom protocol
+public class BathroomLockProtocol implements Protocol {
+	// declare the lock and conditions here
+	//Lock femaleLock = new ReentrantLock(true);
+	//Lock maleLock = new ReentrantLock(true);
+	Lock lock = new ReentrantLock(true);
+	Condition condition = lock.newCondition();
+	//Condition femaleCond = femaleLock.newCondition();
+	//Condition maleCond = maleLock.newCondition();
+	volatile int femaleEnters = 0;
+	volatile int femaleLeaves = 0;
+	volatile int maleEnters = 0;
+	volatile int maleLeaves = 0;
+	boolean femaleExists = false;
+	boolean maleExists = false;
+	
+	public void enterMale() {
+		lock.lock();
+		System.out.println(Thread.currentThread() + "boy has enteredmale. current number of boys entered " + maleEnters + "left " + maleLeaves);
+		
+		System.out.println("boy has acquiredlock in enter");
+		try{
+			while(femaleExists){
+				maleExists = true;
+				try {
+					System.out.println("in male await 1");
+					condition.await();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			maleExists = true;
+			System.out.println("male interested");
+			while(femaleEnters != femaleLeaves) {
+				try {
+					System.out.println("in male await 2");
+					condition.await();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			maleEnters++;
+			System.out.println("number of males in bathroom " + (maleEnters - maleLeaves));
+			maleExists =false;
+			System.out.println("Male not interested anymore because already inside");
+		}
+		finally{
+			lock.unlock();
+			System.out.println("Boy has finished eintering");
+		}
+	}
+
+	public void leaveMale() {
+		lock.lock();
+		System.out.println("boy has acquired lock in leave");
+		try{
+			maleLeaves++;
+			System.out.println("number of males in bathroom" + (maleEnters - maleLeaves));
+			if(maleEnters == maleLeaves){
+				System.out.println("signal all women");
+				condition.signalAll();
+			}
+		}
+		finally{
+			lock.unlock();
+			System.out.println("male has finshed leaving");
+		}
+	}
+
+	public void enterFemale() {
+		System.out.println("girl in enter");
+		lock.lock();
+		System.out.println("Girl acquired lock");
+		try{
+			while(maleExists) {
+				femaleExists = true;
+				try {
+					System.out.println("in female awaity 1");
+					condition.await();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			femaleExists = true;
+			while(maleEnters != maleLeaves) {
+				try {
+					System.out.println("in female awaity 2");
+					condition.await();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			femaleEnters++;
+			System.out.println("total girls in bathroom enterFemale " + (femaleEnters - femaleLeaves));
+			femaleExists = false;
+		}
+		finally{
+			lock.unlock();
+			System.out.println("female done entering");
+		}
+	}
+
+	public void leaveFemale() {
+		lock.lock();
+		try{
+			femaleLeaves++;
+			System.out.println("girl left total: " + (femaleEnters - femaleLeaves));
+			if(femaleEnters == femaleLeaves) {
+				System.out.println("signal all males");
+				condition.signalAll();
+			}
+		}
+		finally{
+			lock.unlock();
+			System.out.println("female done leaving");
+		}
+	}
+}
